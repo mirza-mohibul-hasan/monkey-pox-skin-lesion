@@ -5,6 +5,7 @@ import numpy as np
 import cv2
 from PIL import Image
 import io
+import os
 
 app = Flask(__name__)
 
@@ -52,9 +53,16 @@ model.eval()
 # Define the labels for binary classification
 labels = ["Monkey Pox", "Non Monkey Pox"]
 
+# Create a directory for uploaded files if it doesn't exist
+if not os.path.exists('static/uploads'):
+    os.makedirs('static/uploads')
+
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
+    image_url = None
+    label = None
+
     if request.method == 'POST':
         if 'file' not in request.files:
             return render_template('index.html', label="No file uploaded")
@@ -64,8 +72,13 @@ def index():
         if file.filename == '':
             return render_template('index.html', label="No file selected")
 
+        # Save the file
+        file_path = os.path.join('static/uploads', file.filename)
+        file.save(file_path)
+        image_url = '/static/uploads/' + file.filename
+
         # Read the image and preprocess it
-        img = Image.open(io.BytesIO(file.read()))
+        img = Image.open(file_path)
         img = img.convert('RGB')
 
         # Apply transformations
@@ -83,9 +96,7 @@ def index():
             pred = model(img_tensor)
             label = labels[int(round(pred.item()))]
 
-        return render_template('index.html', label=label, img_data=file.read())
-
-    return render_template('index.html')
+    return render_template('index.html', image_url=image_url, label=label)
 
 
 if __name__ == '__main__':
